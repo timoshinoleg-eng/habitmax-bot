@@ -1,0 +1,224 @@
+/* App-specific styles */
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Bottom navigation styling */
+.bottom-nav {
+  background: var(--max-bg-primary);
+  border-top: 1px solid var(--max-border);
+  padding: 8px 0;
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+}
+
+.bottom-nav .max-tabbar-item {
+  color: var(--max-text-secondary);
+}
+
+.bottom-nav .max-tabbar-item.active {
+  color: var(--max-primary);
+}
+
+/* Page transitions */
+.page {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Card hover effects */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--max-shadow);
+}
+
+/* Button press effect */
+button:active {
+  transform: scale(0.98);
+}
+
+/* Input focus styling */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--max-primary);
+  box-shadow: 0 0 0 3px var(--max-primary)20;
+}
+
+/* Scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--max-bg-tertiary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--max-text-tertiary);
+}
+
+/* Safe area for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .page {
+    padding-top: env(safe-area-inset-top, 16px);
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Dark mode specific adjustments */
+.dark .card {
+  background: var(--max-bg-secondary);
+}
+
+.dark .routine-item {
+  background: var(--max-bg-tertiary);
+}
+
+.dark .routine-icon {
+  background: var(--max-bg-secondary);
+}
+
+/* Loading states */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--max-bg-secondary) 25%,
+    var(--max-bg-tertiary) 50%,
+    var(--max-bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Achievement animation */
+.achievement-new {
+  animation: achievementPop 0.5s ease-out;
+}
+
+@keyframes achievementPop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Confetti animation */
+.confetti-piece {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--max-primary);
+  animation: confetti-fall 3s ease-out forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Toast notifications */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--max-bg-secondary);
+  color: var(--max-text-primary);
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--max-shadow);
+  z-index: 1000;
+  animation: toast-slide-up 0.3s ease-out;
+}
+
+@keyframes toast-slide-up {
+  from {
+    transform: translateX(-50%) translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 360px) {
+  .page {
+    padding: 12px;
+    padding-bottom: 76px;
+  }
+  
+  .stat-value {
+    font-size: 24px;
+  }
+  
+  .badge-icon {
+    font-size: 32px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .bottom-nav {
+    display: none;
+  }
+  
+  .page {
+    padding-bottom: 16px;
+  }
+}

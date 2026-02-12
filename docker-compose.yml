@@ -1,0 +1,140 @@
+# HabitMax Bot - Docker Compose Configuration
+# Российский стек: PostgreSQL + Redis + MinIO
+
+version: '3.8'
+
+services:
+  # Backend API и Bot
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: habitmax-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=habitmax
+      - DB_USER=habitmax
+      - DB_PASSWORD=${DB_PASSWORD:-secure_password}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - MAX_API_TOKEN=${MAX_API_TOKEN}
+      - MAX_API_URL=https://platform-api.max.ru
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_key}
+      - WEBHOOK_URL=${WEBHOOK_URL:-https://api.habitmax.ru/webhook}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src:ro
+      - backend_logs:/app/logs
+    networks:
+      - habitmax-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: habitmax-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=habitmax
+      - POSTGRES_USER=habitmax
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - habitmax-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U habitmax -d habitmax"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis для очередей и кэша
+  redis:
+    image: redis:7-alpine
+    container_name: habitmax-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - habitmax-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO для хранения файлов (S3-совместимое)
+  minio:
+    image: minio/minio:latest
+    container_name: habitmax-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - habitmax-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Создание бакетов в MinIO
+  minio-setup:
+    image: minio/mc:latest
+    container_name: habitmax-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin};
+      /usr/bin/mc mb myminio/habitmax-exports --ignore-existing;
+      /usr/bin/mc policy set download myminio/habitmax-exports;
+      exit 0;
+      "
+    networks:
+      - habitmax-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  backend_logs:
+
+networks:
+  habitmax-network:
+    driver: bridge
