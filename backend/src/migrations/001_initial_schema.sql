@@ -335,6 +335,7 @@ CREATE OR REPLACE FUNCTION check_achievements(p_user_id BIGINT)
 RETURNS TABLE(achievement_code VARCHAR, title VARCHAR, points INT) AS $$
 DECLARE
     v_streak INT;
+    v_max_streak INT;
     v_total_completed INT;
     v_medication_streak INT;
 BEGIN
