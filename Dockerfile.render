@@ -1,0 +1,29 @@
+# HabitMax Bot - Dockerfile for Render
+# Оптимизирован для Render Web Service
+
+FROM node:18-alpine
+
+# Установка зависимостей для сборки
+RUN apk add --no-cache curl
+
+WORKDIR /app
+
+# Копируем package.json и устанавливаем зависимости
+COPY backend/package*.json ./
+RUN npm ci --only=production
+
+# Копируем исходный код
+COPY backend/src ./src
+
+# Создаём директорию для логов и uploads
+RUN mkdir -p logs uploads
+
+# Порт приложения (Render использует PORT из env)
+EXPOSE 10000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:$PORT/health || exit 1
+
+# Запуск
+CMD ["node", "src/index.js"]

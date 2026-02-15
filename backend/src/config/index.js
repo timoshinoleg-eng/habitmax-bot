@@ -38,21 +38,57 @@ export const config = {
     }
   },
 
-  // База данных
-  database: {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    name: process.env.DB_NAME || 'habitmax',
-    user: process.env.DB_USER || 'habitmax',
-    password: process.env.DB_PASSWORD || 'secure_password',
-  },
+  // База данных (поддержка DATABASE_URL для Render)
+  database: (() => {
+    if (process.env.DATABASE_URL) {
+      try {
+        const parsed = new URL(process.env.DATABASE_URL);
+        return {
+          host: parsed.hostname,
+          port: parseInt(parsed.port) || 5432,
+          name: parsed.pathname.slice(1),
+          user: parsed.username,
+          password: parsed.password,
+          url: process.env.DATABASE_URL,
+        };
+      } catch (e) {
+        logger.warn('Не удалось распарсить DATABASE_URL, используем fallback');
+      }
+    }
+    return {
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      name: process.env.DB_NAME || 'habitmax',
+      user: process.env.DB_USER || 'habitmax',
+      password: process.env.DB_PASSWORD || 'secure_password',
+      url: null,
+    };
+  })(),
 
-  // Redis
-  redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    password: process.env.REDIS_PASSWORD || '',
-  },
+  // Redis (поддержка REDIS_URL для Upstash/Render)
+  redis: (() => {
+    if (process.env.REDIS_URL) {
+      try {
+        const parsed = new URL(process.env.REDIS_URL);
+        return {
+          host: parsed.hostname,
+          port: parseInt(parsed.port) || (parsed.protocol === 'rediss:' ? 6380 : 6379),
+          password: parsed.password || process.env.REDIS_PASSWORD || '',
+          url: process.env.REDIS_URL,
+          tls: parsed.protocol === 'rediss:',
+        };
+      } catch (e) {
+        logger.warn('Не удалось распарсить REDIS_URL, используем fallback');
+      }
+    }
+    return {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD || '',
+      url: null,
+      tls: false,
+    };
+  })(),
 
   // MinIO (S3-совместимое хранилище)
   minio: {

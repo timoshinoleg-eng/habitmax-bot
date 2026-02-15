@@ -8,42 +8,74 @@ import Redis from 'ioredis';
 import { logger } from './logger.js';
 
 /**
+ * Парсинг REDIS_URL (Upstash/Render format)
+ * Поддерживает: redis:// и rediss:// (TLS)
+ * @param {string} url - Redis connection URL
+ * @returns {Object} Параметры подключения
+ */
+const parseRedisUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    const isTls = parsed.protocol === 'rediss:';
+    
+    return {
+      host: parsed.hostname,
+      port: parseInt(parsed.port) || (isTls ? 6380 : 6379),
+      password: parsed.password || undefined,
+      tls: isTls ? {} : undefined,
+    };
+  } catch (error) {
+    logger.error('Ошибка парсинга REDIS_URL:', error.message);
+    return null;
+  }
+};
+
+/**
+ * Получение конфигурации Redis
+ */
+const getRedisConfig = (db = 0) => {
+  const baseConfig = {
+    db,
+    retryStrategy: (times) => {
+      const delay = Math.min(times * 50, 2000);
+      logger.warn(`Повторное подключение к Redis через ${delay}ms (попытка ${times})`);
+      return delay;
+    },
+    maxRetriesPerRequest: db === 0 ? 3 : null, // BullMQ требует null
+  };
+
+  // Приоритет: REDIS_URL (Upstash/Render) > отдельные переменные
+  if (process.env.REDIS_URL) {
+    const parsed = parseRedisUrl(process.env.REDIS_URL);
+    if (parsed) {
+      logger.info(`Используется REDIS_URL для подключения (DB ${db})`);
+      return { ...baseConfig, ...parsed };
+    }
+  }
+
+  // Fallback на отдельные переменные
+  return {
+    ...baseConfig,
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    password: process.env.REDIS_PASSWORD || undefined,
+  };
+};
+
+/**
  * Создание экземпляра Redis клиента
  */
-export const redisClient = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD || undefined,
-  db: 0,
-  retryStrategy: (times) => {
-    const delay = Math.min(times * 50, 2000);
-    logger.warn(`Повторное подключение к Redis через ${delay}ms (попытка ${times})`);
-    return delay;
-  },
-  maxRetriesPerRequest: 3,
-});
+export const redisClient = new Redis(getRedisConfig(0));
 
 /**
  * Создание экземпляра Redis для BullMQ (требуется отдельное соединение)
  */
-export const bullRedis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD || undefined,
-  db: 1, // Отдельная БД для очередей
-  maxRetriesPerRequest: null, // BullMQ требует null
-});
+export const bullRedis = new Redis(getRedisConfig(1));
 
 /**
  * Создание экземпляра Redis для подписчика BullMQ
  */
-export const bullSubscriber = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD || undefined,
-  db: 1,
-  maxRetriesPerRequest: null,
-});
+export const bullSubscriber = new Redis(getRedisConfig(1));
 
 // Обработка событий Redis
 redisClient.on('connect', () => {

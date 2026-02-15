@@ -9,17 +9,61 @@ import { logger } from './logger.js';
 const { Pool } = pg;
 
 /**
+ * Парсинг DATABASE_URL (Render format)
+ * @param {string} url - PostgreSQL connection URL
+ * @returns {Object} Параметры подключения
+ */
+const parseDatabaseUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.hostname,
+      port: parseInt(parsed.port) || 5432,
+      database: parsed.pathname.slice(1), // убираем ведущий /
+      user: parsed.username,
+      password: parsed.password,
+    };
+  } catch (error) {
+    logger.error('Ошибка парсинга DATABASE_URL:', error.message);
+    return null;
+  }
+};
+
+/**
+ * Получение конфигурации БД
+ */
+const getDbConfig = () => {
+  // Приоритет: DATABASE_URL (Render) > отдельные переменные
+  if (process.env.DATABASE_URL) {
+    const parsed = parseDatabaseUrl(process.env.DATABASE_URL);
+    if (parsed) {
+      logger.info('Используется DATABASE_URL для подключения к PostgreSQL');
+      return parsed;
+    }
+  }
+
+  // Fallback на отдельные переменные
+  return {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'habitmax',
+    user: process.env.DB_USER || 'habitmax',
+    password: process.env.DB_PASSWORD || 'secure_password',
+  };
+};
+
+const dbConfig = getDbConfig();
+
+/**
  * Создание пула соединений с PostgreSQL
  */
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'habitmax',
-  user: process.env.DB_USER || 'habitmax',
-  password: process.env.DB_PASSWORD || 'secure_password',
+  ...dbConfig,
   max: 20, // Максимальное количество соединений в пуле
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+  // Для Render/SSL
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
 // Обработка ошибок пула
