@@ -45,31 +45,13 @@ services:
         sync: false
       - key: WEBHOOK_URL
         sync: false
-    disk:
-      name: habitmax-storage
-      mountPath: /app/uploads
-      sizeGB: 1
     healthCheckPath: /health
 
   - type: redis
     name: habitmax-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
-
-  - type: pserv
-    name: habitmax-minio
-    runtime: docker
-    dockerfilePath: ./Dockerfile.minio
-    plan: free
-    disk:
-      name: minio-data
-      mountPath: /data
-      sizeGB: 1
-    envVars:
-      - key: MINIO_ROOT_USER
-        generateValue: true
-      - key: MINIO_ROOT_PASSWORD
-        generateValue: true
+    ipAllowList: []  # Allow all IPs (required for free tier)
 
 databases:
   - name: habitmax-db
