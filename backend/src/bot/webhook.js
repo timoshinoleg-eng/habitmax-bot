@@ -69,6 +69,13 @@ export const handleWebhook = async (req, res) => {
  */
 const handleMessage = async (message) => {
   const { from, text, chat } = message;
+  
+  // Проверка структуры сообщения от Max API
+  if (!from || !from.id) {
+    logger.warn('Получено сообщение без информации о пользователе:', message);
+    return;
+  }
+  
   const userId = from.id;
 
   // Получаем или создаем пользователя
