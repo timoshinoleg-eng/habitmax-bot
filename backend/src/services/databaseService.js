@@ -17,7 +17,12 @@ import { v4 as uuidv4 } from 'uuid';
  * @param {Object} userData - Данные пользователя из Max API
  */
 export const getOrCreateUser = async (userData) => {
-  const { id, username, first_name, last_name } = userData;
+  // Max API использует user_id, а не id
+  const userId = userData.user_id || userData.id;
+  const { username, first_name, last_name, name } = userData;
+  
+  // Если first_name пустой, но есть name — используем name
+  const finalFirstName = first_name || name || '';
   
   const result = await query(
     `INSERT INTO users (user_id, username, first_name, last_name)
@@ -29,7 +34,7 @@ export const getOrCreateUser = async (userData) => {
        last_name = EXCLUDED.last_name,
        last_active = CURRENT_TIMESTAMP
      RETURNING *`,
-    [id, username, first_name, last_name]
+    [userId, username || '', finalFirstName, last_name || '']
   );
   
   return result.rows[0];

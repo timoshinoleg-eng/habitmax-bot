@@ -68,18 +68,21 @@ export const handleWebhook = async (req, res) => {
  * @param {Object} message - Объект сообщения
  */
 const handleMessage = async (message) => {
-  const { from, text, chat } = message;
+  // Max API использует 'sender' вместо 'from'
+  const sender = message.sender || message.from;
+  const text = message.text;
+  const chat = message.recipient || message.chat;
   
   // Проверка структуры сообщения от Max API
-  if (!from || !from.id) {
+  if (!sender || !sender.user_id) {
     logger.warn('Получено сообщение без информации о пользователе:', message);
     return;
   }
   
-  const userId = from.id;
+  const userId = sender.user_id;
 
   // Получаем или создаем пользователя
-  const user = await db.getOrCreateUser(from);
+  const user = await db.getOrCreateUser(sender);
 
   // Обработка команд
   if (text?.startsWith('/')) {
